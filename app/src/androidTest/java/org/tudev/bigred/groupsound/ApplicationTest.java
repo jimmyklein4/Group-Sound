@@ -1,4 +1,4 @@
-package com.tudev.bigred.groupsound;
+package org.tudev.bigred.groupsound;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
