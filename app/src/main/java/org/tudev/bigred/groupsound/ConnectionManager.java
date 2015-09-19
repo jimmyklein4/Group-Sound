@@ -79,7 +79,7 @@ public class ConnectionManager{
                     if(clients.size()>0) {
                         serverListen(clients.get(clients.size() - 1));
                     }
-                }catch(java.io.IOException e){
+                }catch(Exception e){
                     Log.d(TAG, e.toString());
                 }
             }
