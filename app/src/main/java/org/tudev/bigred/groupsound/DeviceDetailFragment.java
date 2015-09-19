@@ -18,7 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.example.jimmyklein.wifidirecttest2.DeviceListFragment.DeviceActionListener;
+import org.tudev.bigred.groupsound.DeviceListFragment.DeviceActionListener;
 
 import java.io.IOException;
 import java.io.InputStream;
