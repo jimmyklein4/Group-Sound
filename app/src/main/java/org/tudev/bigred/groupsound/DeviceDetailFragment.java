@@ -106,7 +106,8 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                         // Allow user to pick an image from Gallery or other
                         // registered apps
                         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                        intent.setType("video/mp4");
+                        //THIS DOESNT WORK ON THE NEXUS FOR SOME REASON
+                        intent.setType("audio/x-mpeg-3");
                         startActivityForResult(intent, CHOOSE_FILE_RESULT_CODE);
                     }
                 });
@@ -177,8 +178,8 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                                 }
                                 client.close();
                                 serverSocket.close();
-                                Log.d(TAG, "Client IP address: "+ client.getInetAddress().getHostAddress());
-                                Log.d(TAG, "Count: "+ ipAddresses.size());
+//                                Log.d(TAG, "Client IP address: "+ client.getInetAddress().getHostAddress());
+//                                Log.d(TAG, "Count: "+ ipAddresses.size());
                             } else {
                                 Log.d(TAG, "Failed at catching IP");
                             }
