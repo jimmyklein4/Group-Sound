@@ -157,7 +157,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // server. The file server is single threaded, single connection server
         // socket.
         if (info.groupFormed && info.isGroupOwner) {
-            //new FileServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
+            new FileServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
             mContentView.findViewById(R.id.btn_start_client).setVisibility(View.VISIBLE);
             new Thread(new Runnable() {
                 @Override
@@ -165,14 +165,14 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                     try {
                         Log.d(TAG, "Entered thread owner. My IP: " + info.groupOwnerAddress.getHostAddress());
                         if(serverSocket==null) {
-                            serverSocket = new ServerSocket(8987);
+                            serverSocket = new ServerSocket(8988);
                             serverSocket.setReuseAddress(true);
                         }
                         if(clients == null){
                             clients = new ArrayList<>();
                         }
                         clients.add(serverSocket.accept());
-                    } catch(IOException e){
+                    } catch(Exception e){
                         Log.d(TAG, e.toString());
                     }
                 }
@@ -194,7 +194,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                     }
                     try {
                         Log.d(TAG, "Entered try no2");
-                        socket.connect((new InetSocketAddress(info.groupOwnerAddress, 8987)), 5000);
+                        socket.connect((new InetSocketAddress(info.groupOwnerAddress, 8988)), 5000);
                         Log.d(TAG, info.groupOwnerAddress.toString());
                     } catch(java.io.IOException e){
                         Log.d(TAG, e.toString());
@@ -287,9 +287,15 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                     InputStream inputstream = clients.get(i).getInputStream();
                     copyFile(inputstream, new FileOutputStream(f));
                 }
+                return null;
             } catch (IOException e) {
                 Log.e(TAG, e.getMessage());
+                return null;
             }
+        }
+
+        protected String doInBackground(Void... params){
+            return null;
         }
 
         /*
