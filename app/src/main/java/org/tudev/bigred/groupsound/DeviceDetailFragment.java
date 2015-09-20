@@ -127,6 +127,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // User has picked an image. Transfer it to group owner i.e peer using
         // FileTransferService.
         final Uri uri = data.getData();
+        Log.d(TAG, uri.getPath());
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -259,8 +260,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
     public void receiveFile(Socket hostSocket){
         InputStream inputStream;
-        final File f = new File(Environment.getExternalStorageDirectory() + "/"
-                + this.getContext().getPackageName() + "/wifip2pshared-" + System.currentTimeMillis()
+        final File f = new File(Environment.getExternalStorageDirectory() + "/wifip2pshared-" + System.currentTimeMillis()
                 + ".mp3");
         try {
             File dirs = new File(f.getParent());
@@ -270,21 +270,21 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
             inputStream = hostSocket.getInputStream();
             copyFile(inputStream, new FileOutputStream(f));
+            timeExecute(this.getContext(), f.getAbsolutePath());
         }catch(Exception e){
             Log.d(TAG, e.toString());
         }
     }
 
-    public static boolean copyFile(InputStream inputStream, OutputStream out, Context context) {
+    public static boolean copyFile(InputStream inputStream, OutputStream out) {
         byte buf[] = new byte[1024];
         int len;
         try {
             while ((len = inputStream.read(buf)) != -1) {
                 out.write(buf, 0, len);
             }
-            timeExecute(context);
             out.close();
-
+            Log.d(TAG, "File Sent");
         } catch (IOException e) {
             Log.d(TAG, e.toString());
             return false;
@@ -292,10 +292,10 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         return true;
     }
 
-    public static void timeExecute(Context context){
+    public static void timeExecute(Context context, String result){
         Intent intent = new Intent();
         intent.setAction(android.content.Intent.ACTION_VIEW);
-        intent.setDataAndType(Uri.parse("file://" + result), "video/mp4");
+        intent.setDataAndType(Uri.parse("file://" + result), "audio/x-mpeg-3");
         context.startActivity(intent);
     }
 
