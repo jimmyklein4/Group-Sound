@@ -128,6 +128,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
             Intent serviceIntent = new Intent(getActivity(), FileTransferService.class);
             serviceIntent.setAction(FileTransferService.ACTION_SEND_FILE);
             serviceIntent.putExtra(FileTransferService.EXTRAS_FILE_PATH, uri.toString());
+            Log.d(TAG, uri.toString());
             serviceIntent.putExtra(FileTransferService.EXTRAS_GROUP_OWNER_ADDRESS, addresses.get(i).getHostAddress());
             serviceIntent.putExtra(FileTransferService.EXTRAS_GROUP_OWNER_PORT, 8988);
             getActivity().startService(serviceIntent);
