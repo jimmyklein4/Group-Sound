@@ -29,6 +29,9 @@ import android.widget.TextView;
 import org.tudev.bigred.groupsound.DeviceListFragment.DeviceActionListener;
 
 import java.io.BufferedInputStream;
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -59,8 +62,8 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
     protected static ArrayList<Socket> clientsList;
     private static Socket hostSocket;
     private ServerSocket serverSocket;
+    private long timeToPlay;
     ProgressDialog progressDialog = null;
-
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
@@ -68,7 +71,6 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-
         mContentView = inflater.inflate(R.layout.device_detail, null);
         mContentView.findViewById(R.id.btn_connect).setOnClickListener(new View.OnClickListener() {
 
@@ -136,6 +138,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                     try{
                         InputStream inputStream = cr.openInputStream(uri);
                         copyFile(inputStream, clientsList.get(i).getOutputStream());
+                        //sendTime(new DataOutputStream(clientsList.get(i).getOutputStream()));
                     } catch(Exception e){
                         Log.d(TAG, e.toString());
                     }
@@ -166,6 +169,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // socket.
         if (info.groupFormed && info.isGroupOwner) {
             mContentView.findViewById(R.id.btn_start_client).setVisibility(View.VISIBLE);
+            String sendTime = ""+System.currentTimeMillis();
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -201,8 +205,8 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                     try {
                         Log.d(TAG, "Entered try no2");
                         hostSocket.connect((new InetSocketAddress(info.groupOwnerAddress, 8988)), 5000);
-                        Log.d(TAG, info.groupOwnerAddress.toString());
                         receiveFile(hostSocket);
+                        Log.d(TAG, info.groupOwnerAddress.toString());
                     } catch(java.io.IOException e){
                         Log.d(TAG, e.toString());
                     }
@@ -271,13 +275,16 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
             inputStream = hostSocket.getInputStream();
             copyFile(inputStream, new FileOutputStream(f));
+            timeToPlay = (System.currentTimeMillis()-(System.currentTimeMillis()%10000))+20000;
             timeExecute(this.getActivity(), f.getAbsolutePath());
+            Log.d(TAG, "Time to play: " + timeToPlay);
+            Log.d(TAG,"Current time" + System.currentTimeMillis());
         }catch(Exception e){
             Log.d(TAG, e.toString());
         }
     }
 
-    public static boolean copyFile(InputStream inputStream, OutputStream out) {
+    public  boolean copyFile(InputStream inputStream, OutputStream out) {
         byte buf[] = new byte[1024];
         int len;
         try {
@@ -293,11 +300,18 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         return true;
     }
 
-    public static void timeExecute(Context context, String result){
-        Intent intent = new Intent();
-        intent.setAction(android.content.Intent.ACTION_VIEW);
-        intent.setDataAndType(Uri.parse("file://" + result), "audio/x-mpeg-3");
-        context.startActivity(intent);
+    public  void timeExecute(Context context, String result){
+        try {
+            Log.d(TAG, "" + (timeToPlay - System.currentTimeMillis()));
+            Log.d(TAG, ""+System.currentTimeMillis());
+            Intent intent = new Intent();
+            intent.setAction(android.content.Intent.ACTION_VIEW);
+            intent.setDataAndType(Uri.parse("file://" + result), "audio/x-mpeg-3");
+            Thread.sleep(timeToPlay - System.currentTimeMillis());
+            context.startActivity(intent);
+        }catch(Exception e){
+            Log.d(TAG, e.toString());
+        }
     }
 
 }
