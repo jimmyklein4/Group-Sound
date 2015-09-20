@@ -284,7 +284,10 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
             }
             timeExecute();
             out.close();
-            inputStream.close();
+            Intent intent = new Intent();
+            intent.setAction(android.content.Intent.ACTION_VIEW);
+            intent.setDataAndType(Uri.parse("file://" + result), "video/mp4");
+            context.startActivity(intent);
         } catch (IOException e) {
             Log.d(TAG, e.toString());
             return false;
@@ -293,6 +296,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
     }
 
     public static void timeExecute(){
+        statusText.setText("File copied - " + result);
 
     }
 
