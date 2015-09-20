@@ -7,6 +7,8 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
@@ -19,6 +21,7 @@ import android.net.wifi.p2p.WifiP2pManager.ConnectionInfoListener;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.renderscript.ScriptGroup;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -63,6 +66,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
     private static Socket hostSocket;
     private ServerSocket serverSocket;
     private long timeToPlay;
+    private MediaPlayer mediaPlayer;
     ProgressDialog progressDialog = null;
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
@@ -276,7 +280,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
             inputStream = hostSocket.getInputStream();
             copyFile(inputStream, new FileOutputStream(f));
             timeToPlay = (System.currentTimeMillis()-(System.currentTimeMillis()%10000))+20000;
-            timeExecute(this.getActivity(), f.getAbsolutePath());
+            timeExecute(f.getAbsolutePath());
             Log.d(TAG, "Time to play: " + timeToPlay);
             Log.d(TAG,"Current time" + System.currentTimeMillis());
         }catch(Exception e){
@@ -300,15 +304,16 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         return true;
     }
 
-    public  void timeExecute(Context context, String result){
+    public  void timeExecute(String result){
         try {
             Log.d(TAG, "" + (timeToPlay - System.currentTimeMillis()));
             Log.d(TAG, ""+System.currentTimeMillis());
-            Intent intent = new Intent();
-            intent.setAction(android.content.Intent.ACTION_VIEW);
-            intent.setDataAndType(Uri.parse("file://" + result), "audio/x-mpeg-3");
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mediaPlayer.setDataSource(getActivity(), Uri.parse("file://" + result));
+            mediaPlayer.prepare();
             Thread.sleep(timeToPlay - System.currentTimeMillis());
-            context.startActivity(intent);
+            mediaPlayer.start();
         }catch(Exception e){
             Log.d(TAG, e.toString());
         }
