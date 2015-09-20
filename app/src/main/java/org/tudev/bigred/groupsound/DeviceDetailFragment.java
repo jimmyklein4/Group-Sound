@@ -127,13 +127,13 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // User has picked an image. Transfer it to group owner i.e peer using
         // FileTransferService.
         final Uri uri = data.getData();
-        Log.d(TAG, uri.getPath());
+        Log.d(TAG, uri.toString());
         new Thread(new Runnable() {
             @Override
             public void run() {
                 for(int i=0;i<clientsList.size();i++) {
                     try{
-                        copyFile(new FileInputStream(uri.getPath()), clientsList.get(i).getOutputStream());
+                        copyFile(new FileInputStream(uri.toString()), clientsList.get(i).getOutputStream());
                     } catch(Exception e){
                         Log.d(TAG, e.toString());
                     }
