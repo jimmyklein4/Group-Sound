@@ -3,6 +3,7 @@ package org.tudev.bigred.groupsound;
 
 import android.app.Fragment;
 import android.app.ProgressDialog;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -18,6 +19,7 @@ import android.net.wifi.p2p.WifiP2pManager.ConnectionInfoListener;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.renderscript.ScriptGroup;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,7 +28,9 @@ import android.widget.TextView;
 
 import org.tudev.bigred.groupsound.DeviceListFragment.DeviceActionListener;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,7 +56,9 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
     private WifiP2pDevice device;
     private WifiP2pGroup group;
     private WifiP2pInfo info;
-    private ArrayList<InetAddress> ipAddresses;
+    protected static ArrayList<Socket> clientsList;
+    private static Socket hostSocket;
+    private ServerSocket serverSocket;
     ProgressDialog progressDialog = null;
 
     @Override
@@ -121,19 +127,21 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // User has picked an image. Transfer it to group owner i.e peer using
         // FileTransferService.
         final Uri uri = data.getData();
-        TextView statusText = (TextView) mContentView.findViewById(R.id.status_text);
-
-        final ArrayList<InetAddress> addresses = ipAddresses;
-        for(int i=0;i<ipAddresses.size();i++) {
-            Intent serviceIntent = new Intent(getActivity(), FileTransferService.class);
-            serviceIntent.setAction(FileTransferService.ACTION_SEND_FILE);
-            serviceIntent.putExtra(FileTransferService.EXTRAS_FILE_PATH, uri.toString());
-            Log.d(TAG, uri.toString());
-            serviceIntent.putExtra(FileTransferService.EXTRAS_GROUP_OWNER_ADDRESS, addresses.get(i).getHostAddress());
-            serviceIntent.putExtra(FileTransferService.EXTRAS_GROUP_OWNER_PORT, 8988);
-            getActivity().startService(serviceIntent);
-            statusText.setText("Sending: " + uri);
-        }
+        final ContentResolver cr = getActivity().getContentResolver();
+        Log.d(TAG, uri.toString());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for(int i=0;i<clientsList.size();i++) {
+                    try{
+                        InputStream inputStream = cr.openInputStream(uri);
+                        copyFile(inputStream, clientsList.get(i).getOutputStream());
+                    } catch(Exception e){
+                        Log.d(TAG, e.toString());
+                    }
+                }
+            }
+        }).start();
     }
 
     @Override
@@ -157,43 +165,26 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // server. The file server is single threaded, single connection server
         // socket.
         if (info.groupFormed && info.isGroupOwner) {
-            //new FileServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
             mContentView.findViewById(R.id.btn_start_client).setVisibility(View.VISIBLE);
             new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         Log.d(TAG, "Entered thread owner. My IP: " + info.groupOwnerAddress.getHostAddress());
-                        ServerSocket serverSocket = new ServerSocket(8987);
-                        serverSocket.setReuseAddress(true);
-                        Socket client = serverSocket.accept();
-                        ObjectInputStream objectInputStream = new ObjectInputStream(client.getInputStream());
-                        try {
-                            Object object = objectInputStream.readObject();
-                            if(object.getClass().equals(String.class) && ((String) object).equals("test")){
-                                if(ipAddresses == null){
-                                    ipAddresses = new ArrayList<>();
-                                }
-                                if(!ipAddresses.contains(client.getInetAddress())) {
-                                    ipAddresses.add(client.getInetAddress());
-                                }
-                                client.close();
-                                serverSocket.close();
-//                                Log.d(TAG, "Client IP address: "+ client.getInetAddress().getHostAddress());
-//                                Log.d(TAG, "Count: "+ ipAddresses.size());
-                            } else {
-                                Log.d(TAG, "Failed at catching IP");
-                            }
-                        }catch(ClassNotFoundException f){
-                            Log.d(TAG, f.toString());
+                        if(serverSocket==null) {
+                            serverSocket = new ServerSocket(8988);
+                            serverSocket.setReuseAddress(true);
                         }
-                    } catch(IOException e){
+                        if(clientsList == null){
+                            clientsList = new ArrayList<>();
+                        }
+                        clientsList.add(serverSocket.accept());
+                    } catch(Exception e){
                         Log.d(TAG, e.toString());
                     }
                 }
             }).start();
         } else if (info.groupFormed) {
-            new FileServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
 
             ((TextView) mContentView.findViewById(R.id.status_text)).setText(getResources()
                     .getString(R.string.client_text));
@@ -201,22 +192,17 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                 @Override
                 public void run() {
                     Log.d(TAG, "Entered thread not owner");
-                    Socket socket = new Socket();
+                    hostSocket = new Socket();
                     try {
-                        socket.setReuseAddress(true);
+                        hostSocket.setReuseAddress(true);
                     }catch(java.net.SocketException e){
                         Log.d(TAG, e.toString());
                     }
                     try {
                         Log.d(TAG, "Entered try no2");
-                        socket.connect((new InetSocketAddress(info.groupOwnerAddress, 8987)), 5000);
+                        hostSocket.connect((new InetSocketAddress(info.groupOwnerAddress, 8988)), 5000);
                         Log.d(TAG, info.groupOwnerAddress.toString());
-                        OutputStream os = socket.getOutputStream();
-                        ObjectOutputStream oos = new ObjectOutputStream(os);
-                        oos.writeObject(new String("test"));
-                        oos.close();
-                        os.close();
-                        socket.close();
+                        receiveFile(hostSocket);
                     } catch(java.io.IOException e){
                         Log.d(TAG, e.toString());
                     }
@@ -273,77 +259,22 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         this.getView().setVisibility(View.GONE);
     }
 
-    /**
-     * A simple server socket that accepts connection and writes some data on
-     * the stream.
-     */
-    public static class FileServerAsyncTask extends AsyncTask<Void, Void, String> {
+    public void receiveFile(Socket hostSocket){
+        InputStream inputStream;
+        final File f = new File(Environment.getExternalStorageDirectory() + "/wifip2pshared-" + System.currentTimeMillis()
+                + ".mp3");
+        try {
+            File dirs = new File(f.getParent());
+            if (!dirs.exists())
+                dirs.mkdirs();
+            f.createNewFile();
 
-        private Context context;
-        private TextView statusText;
-
-        /**
-         * @param context
-         * @param statusText
-         */
-        public FileServerAsyncTask(Context context, View statusText) {
-            this.context = context;
-            this.statusText = (TextView) statusText;
+            inputStream = hostSocket.getInputStream();
+            copyFile(inputStream, new FileOutputStream(f));
+            timeExecute(this.getActivity(), f.getAbsolutePath());
+        }catch(Exception e){
+            Log.d(TAG, e.toString());
         }
-
-        @Override
-        protected String doInBackground(Void... params) {
-            try {
-                ServerSocket serverSocket = new ServerSocket(8988);
-                serverSocket.setReuseAddress(true);
-                Log.d(TAG, "Server: Socket opened");
-                Socket client = serverSocket.accept();
-                Log.d(TAG, "Server: connection done");
-                final File f = new File(Environment.getExternalStorageDirectory() + "/"
-                        + context.getPackageName() + "/wifip2pshared-" + System.currentTimeMillis()
-                        + ".mp4");
-
-                File dirs = new File(f.getParent());
-                if (!dirs.exists())
-                    dirs.mkdirs();
-                f.createNewFile();
-
-                Log.d(TAG, "server: copying files " + f.toString());
-                InputStream inputstream = client.getInputStream();
-                copyFile(inputstream, new FileOutputStream(f));
-                serverSocket.close();
-                return f.getAbsolutePath();
-            } catch (IOException e) {
-                Log.e(TAG, e.getMessage());
-                return null;
-            }
-        }
-
-        /*
-         * (non-Javadoc)
-         * @see android.os.AsyncTask#onPostExecute(java.lang.Object)
-         */
-        @Override
-        protected void onPostExecute(String result) {
-            if (result != null) {
-                statusText.setText("File copied - " + result);
-                Intent intent = new Intent();
-                intent.setAction(android.content.Intent.ACTION_VIEW);
-                intent.setDataAndType(Uri.parse("file://" + result), "video/mp4");
-                context.startActivity(intent);
-            }
-
-        }
-
-        /*
-         * (non-Javadoc)
-         * @see android.os.AsyncTask#onPreExecute()
-         */
-        @Override
-        protected void onPreExecute() {
-            statusText.setText("Opening a server socket");
-        }
-
     }
 
     public static boolean copyFile(InputStream inputStream, OutputStream out) {
@@ -354,12 +285,19 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                 out.write(buf, 0, len);
             }
             out.close();
-            inputStream.close();
+            Log.d(TAG, "File Sent");
         } catch (IOException e) {
             Log.d(TAG, e.toString());
             return false;
         }
         return true;
+    }
+
+    public static void timeExecute(Context context, String result){
+        Intent intent = new Intent();
+        intent.setAction(android.content.Intent.ACTION_VIEW);
+        intent.setDataAndType(Uri.parse("file://" + result), "audio/x-mpeg-3");
+        context.startActivity(intent);
     }
 
 }
