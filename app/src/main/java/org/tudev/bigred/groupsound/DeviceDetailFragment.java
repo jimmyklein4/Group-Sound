@@ -28,7 +28,9 @@ import android.widget.TextView;
 
 import org.tudev.bigred.groupsound.DeviceListFragment.DeviceActionListener;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -125,13 +127,18 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         // User has picked an image. Transfer it to group owner i.e peer using
         // FileTransferService.
         final Uri uri = data.getData();
-
         new Thread(new Runnable() {
             @Override
             public void run() {
-                for(int i=0;i<clientsList.size();i++) {
-
+                try{
+                    for(int i=0;i<clientsList.size();i++) {
+                        OutputStream outputStream = clientsList.get(i).getOutputStream();
+                        copyFile(uri,outputStream);
+                    }
+                } catch(IOException e){
+                    Log.d(TAG, e.toString());
                 }
+
             }
         }).start();
 
@@ -179,7 +186,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                 }
             }).start();
         } else if (info.groupFormed) {
-
+            new FileServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
             ((TextView) mContentView.findViewById(R.id.status_text)).setText(getResources()
                     .getString(R.string.client_text));
             new Thread(new Runnable() {
@@ -196,7 +203,6 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                         Log.d(TAG, "Entered try no2");
                         client.connect((new InetSocketAddress(info.groupOwnerAddress, 8988)), 5000);
                         Log.d(TAG, info.groupOwnerAddress.toString());
-                        new FileServerAsyncTask(getActivity(), mContentView.findViewById(R.id.status_text)).execute();
                     } catch(java.io.IOException e){
                         Log.d(TAG, e.toString());
                     }
@@ -276,7 +282,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
             try {
                 final File f = new File(Environment.getExternalStorageDirectory() + "/"
                         + context.getPackageName() + "/wifip2pshared-" + System.currentTimeMillis()
-                        + ".mp4");
+                        + ".mp3");
 
                 File dirs = new File(f.getParent());
                 if (!dirs.exists())
@@ -284,7 +290,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
                 f.createNewFile();
                 Log.d(TAG, "server: copying files " + f.toString());
                 InputStream inputstream = client.getInputStream();
-                copyFile(this, inputstream, new FileOutputStream(f));
+                copyFile(inputstream, new FileOutputStream(f));
                 return f.getAbsolutePath();
             } catch (IOException e) {
                 Log.e(TAG, e.getMessage());
@@ -314,7 +320,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
          */
         @Override
         protected void onPreExecute() {
-            statusText.setText("Opening a server socket");
+//            statusText.setText("Opening a server socket");
         }
 
         /*
@@ -323,13 +329,28 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
          */
     }
 
-    public static boolean copyFile( Context context, Socket client, String fileUri, OutputStream out) {
+    public static boolean copyFile(Uri fileUri, OutputStream out) {
         InputStream inputStream = null;
-        ContentResolver cr = context.getContentResolver();
         byte buf[] = new byte[1024];
         int len;
         try {
-            inputStream = cr.openInputStream(Uri.parse(fileUri));
+            inputStream = new BufferedInputStream(new FileInputStream(fileUri.getPath()));
+            while ((len = inputStream.read(buf)) != -1) {
+                out.write(buf, 0, len);
+            }
+            out.close();
+            inputStream.close();
+        } catch (IOException e) {
+            Log.d(TAG, e.toString());
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean copyFile(InputStream inputStream, OutputStream out) {
+        byte buf[] = new byte[1024];
+        int len;
+        try {
             while ((len = inputStream.read(buf)) != -1) {
                 out.write(buf, 0, len);
             }
