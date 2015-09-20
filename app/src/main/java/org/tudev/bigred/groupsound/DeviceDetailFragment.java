@@ -275,19 +275,16 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         }
     }
 
-    public static boolean copyFile(InputStream inputStream, OutputStream out) {
+    public static boolean copyFile(InputStream inputStream, OutputStream out, Context context) {
         byte buf[] = new byte[1024];
         int len;
         try {
             while ((len = inputStream.read(buf)) != -1) {
                 out.write(buf, 0, len);
             }
-            timeExecute();
+            timeExecute(context);
             out.close();
-            Intent intent = new Intent();
-            intent.setAction(android.content.Intent.ACTION_VIEW);
-            intent.setDataAndType(Uri.parse("file://" + result), "video/mp4");
-            context.startActivity(intent);
+
         } catch (IOException e) {
             Log.d(TAG, e.toString());
             return false;
@@ -295,9 +292,11 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
         return true;
     }
 
-    public static void timeExecute(){
-        statusText.setText("File copied - " + result);
-
+    public static void timeExecute(Context context){
+        Intent intent = new Intent();
+        intent.setAction(android.content.Intent.ACTION_VIEW);
+        intent.setDataAndType(Uri.parse("file://" + result), "video/mp4");
+        context.startActivity(intent);
     }
 
 }
